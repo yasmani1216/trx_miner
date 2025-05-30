@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TRX Miner - Registro y Login</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .balance {
+    background-color: #1f1f1f;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+  }
+  .buttons, .auth-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 15px;
+  }
+  button {
+    padding: 15px;
+    font-size: 1rem;
+    background-color: #00bfa5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #009e8a;
+  }
+  .message {
+    margin-top: 20px;
+    font-size: 1.1rem;
+    color: #80cbc4;
+  }
+  .minando {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #ffd54f;
+  }
+  #referirSection {
+    margin-top: 15px;
+    background-color: #222;
+    padding: 15px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+    display: none;
+    color: #a5d6a7;
+  }
+  #referirSection button {
+    margin-top: 10px;
+    background-color: #4caf50;
+  }
+  /* Form styles */
+  .auth-form {
+    background-color: #222;
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .auth-form input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 5px;
+    border: none;
+    font-size: 1rem;
+  }
+  .auth-form button {
+    width: 100%;
+  }
+  a {
+    color: #80cbc4;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TRX Miner</h1>
+  <p id="welcomeText">Por favor, inicia sesión o regístrate para continuar</p>
+</header>
+
+<div class="auth-buttons" id="authButtons">
+  <button onclick="mostrarRegistro()">Registrar Usuario</button>
+  <button onclick="mostrarLogin()">Login</button>
+</div>
+
+<!-- Formulario Registro -->
+<div class="auth-form" id="formRegistro">
+  <h3>Registrar Usuario</h3>
+  <input type="email" id="regEmail" placeholder="Correo electrónico" required />
+  <input type="password" id="regPass" placeholder="Contraseña" required />
+  <button onclick="registrarUsuario()">Registrarme</button>
+  <p><small>¿Ya tienes cuenta? <a onclick="mostrarLogin();return false;">Inicia sesión</a></small></p>
+</div>
+
+<!-- Formulario Login -->
+<div class="auth-form" id="formLogin">
+  <h3>Iniciar Sesión</h3>
+  <input type="email" id="logEmail" placeholder="Correo electrónico" required />
+  <input type="password" id="logPass" placeholder="Contraseña" required />
+  <button onclick="loginUsuario()">Entrar</button>
+  <p><small>¿No tienes cuenta? <a onclick="mostrarRegistro();return false;">Regístrate</a></small></p>
+</div>
+
+<!-- Contenido Principal -->
+<div id="mainContent" style="display:none; width: 100%; max-width: 700px;">
+
+  <div class="balance">
+    Saldo: <span id="balance">0</span> TRX
+  </div>
+
+  <div class="buttons">
+    <button onclick="recargar()">🔄 Recargar</button>
+    <button onclick="retirar()">💰 Retirar</button>
+    <button onclick="minar()">⛏️ Minar</button>
+    <button onclick="bonoDiario()">🎁 Bono Diario</button>
+    <button onclick="mostrarReferir()">👥 Referir Amigos</button>
+    <button onclick="cerrarSesion()" style="background-color:#e53935;">Cerrar Sesión</button>
+  </div>
+
+  <div class="message" id="mensaje"></div>
+  <div class="minando" id="minando"></div>
+
+  <div id="referirSection">
+    <p>Comparte este enlace con tus amigos para ganar bonos:</p>
+    <input type="text" id="linkReferir" readonly style="width: 90%; padding: 8px; border-radius: 5px; border:none;" />
+  </div>
+</div>
+
+<script>
+  let balance = 0;
+  let haDepositado = false;
+  let usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
+  let usuarioActivo = localStorage.getItem('usuarioActivo') || null;
+
+  function mostrarMensaje(texto) {
+    const mensaje = document.getElementById('mensaje');
+    mensaje.innerText = texto;
+    setTimeout(() => mensaje.innerText = '', 5000);
+  }
+
+  function actualizarSaldo() {
+    document.getElementById('balance').innerText = balance.toFixed(2);
+    guardarDatosUsuario();
+  }
+
+  function guardarDatosUsuario() {
+    if (!usuarioActivo) return;
+    usuarios[usuarioActivo].balance = balance;
+    usuarios[usuarioActivo].haDepositado = haDepositado;
+    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+  }
+
+  function cargarDatosUsuario() {
+    if (!usuarioActivo) return false;
+    const userData = usuarios[usuarioActivo];
+    if (!userData) return false;
+    balance = userData.balance || 0;
+    haDepositado = userData.haDepositado || false;
+    actualizarSaldo();
+    return true;
+  }
+
+  function mostrarRegistro() {
+    document.getElementById('formRegistro').style.display = 'block';
+    document.getElementById('formLogin').style.display = 'none';
+    document.getElementById('authButtons').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('welcomeText').innerText = 'Regístrate para comenzar';
+  }
+
+  function mostrarLogin() {
+    document.getElementById('formRegistro').style.display = 'none';
+    document.getElementById('formLogin').style.display = 'block';
+    document.getElementById('authButtons').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('welcomeText').innerText = 'Inicia sesión para continuar';
+  }
+
+  function mostrarMain() {
+    document.getElementById('formRegistro').style.display = 'none';
+    document.getElementById('formLogin').style.display = 'none';
+    document.getElementById('authButtons').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('welcomeText').innerText = `Bienvenido, ${usuarioActivo}`;
+    actualizarSaldo();
+    document.getElementById('linkReferir').value = window.location.href.split('?')[0] + '?ref=' + encodeURIComponent(usuarioActivo);
+  }
+
+  function registrarUsuario() {
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('regPass').value;
+    if (!email || !pass) {
+      mostrarMensaje('Por favor, completa todos los campos.');
+      return;
+    }
+    if (usuarios[email]) {
+      mostrarMensaje('Este usuario ya está registrado.');
+      return;
+    }
+
+    // Bono de bienvenida
+    let bonoBienvenida = 5;
+    usuarios[email] = {
+      password: pass,
+      balance: bonoBienvenida,
+      haDepositado: false
+    };
+
+    // Bono para el invitador si hay ref válido
+    const invitador = localStorage.getItem('refInvitador');
+    if (invitador && usuarios[invitador]) {
+      usuarios[invitador].balance += 5;
+      mostrarMensaje(`¡Bono de bienvenida para ti y tu invitador ${invit
+
